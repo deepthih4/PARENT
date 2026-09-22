@@ -4,10 +4,11 @@ const path = require("path");
 const { createClient } = require("@supabase/supabase-js");
 
 const app = express();
+
 const PORT = process.env.PORT || 10000;
 
 // =====================================================
-// SUPABASE
+// SUPABASE CONNECTION
 // =====================================================
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -24,27 +25,24 @@ const supabase = createClient(
     SUPABASE_ANON_KEY
 );
 
-// =====================================================
-// STUDENT TABLE CONFIGURATION
-// =====================================================
-
-// Set these in Render Environment Variables.
-// Use the EXACT column names from your Supabase table.
-
-const STUDENTS_TABLE =
-    process.env.STUDENTS_TABLE || "students";
-
-const STUDENT_ID_COLUMN =
-    process.env.STUDENT_ID_COLUMN;
-
-const PARENT_MOBILE_COLUMN =
-    process.env.PARENT_MOBILE_COLUMN;
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // =====================================================
-// HEALTH
+// STUDENT TABLE SETTINGS
+// =====================================================
+
+// Supabase table name
+const STUDENTS_TABLE = "students";
+
+// Supabase Student ID column
+const STUDENT_ID_COLUMN = "student_id";
+
+// Supabase Parent Mobile column
+const PARENT_MOBILE_COLUMN = "parent_mobile";
+
+// =====================================================
+// HEALTH CHECK
 // =====================================================
 
 app.get("/api/health", (req, res) => {
@@ -57,11 +55,12 @@ app.get("/api/health", (req, res) => {
 // =====================================================
 // INSTITUTION LOGIN
 // Login ID + Password
-// Existing route preserved
 // =====================================================
 
 app.post("/api/login", async (req, res) => {
+
     try {
+
         const loginId = String(
             req.body.loginId || ""
         ).trim();
@@ -70,12 +69,18 @@ app.post("/api/login", async (req, res) => {
             req.body.password || ""
         ).trim();
 
+        // VALIDATION
+
         if (!loginId || !password) {
+
             return res.status(400).json({
                 success: false,
                 message: "Login ID and Password are required."
             });
+
         }
+
+        // FIND INSTITUTION
 
         const { data, error } = await supabase
             .from("institutions")
@@ -84,6 +89,7 @@ app.post("/api/login", async (req, res) => {
             .limit(1);
 
         if (error) {
+
             console.error(
                 "INSTITUTION LOGIN DB ERROR:",
                 error
@@ -93,16 +99,23 @@ app.post("/api/login", async (req, res) => {
                 success: false,
                 message: "Institution login database error."
             });
+
         }
 
+        // LOGIN ID NOT FOUND
+
         if (!data || data.length === 0) {
+
             return res.status(401).json({
                 success: false,
                 message: "Invalid Login ID or Password."
             });
+
         }
 
         const row = data[0];
+
+        // PASSWORD CHECK
 
         const storedPassword = String(
             row.password || ""
@@ -112,11 +125,15 @@ app.post("/api/login", async (req, res) => {
             !storedPassword ||
             storedPassword !== password
         ) {
+
             return res.status(401).json({
                 success: false,
                 message: "Invalid Login ID or Password."
             });
+
         }
+
+        // SUCCESS
 
         return res.json({
             success: true,
@@ -124,6 +141,7 @@ app.post("/api/login", async (req, res) => {
         });
 
     } catch (error) {
+
         console.error(
             "INSTITUTION LOGIN SERVER ERROR:",
             error
@@ -133,7 +151,9 @@ app.post("/api/login", async (req, res) => {
             success: false,
             message: "Login failed. Please try again."
         });
+
     }
+
 });
 
 // =====================================================
@@ -142,7 +162,9 @@ app.post("/api/login", async (req, res) => {
 // =====================================================
 
 app.post("/api/parent-login", async (req, res) => {
+
     try {
+
         const studentId = String(
             req.body.studentId || ""
         ).trim();
@@ -151,48 +173,29 @@ app.post("/api/parent-login", async (req, res) => {
             req.body.parentMobile || ""
         ).trim();
 
-        // ---------------------------------------------
         // VALIDATION
-        // ---------------------------------------------
 
         if (!studentId || !parentMobile) {
+
             return res.status(400).json({
                 success: false,
                 message:
                     "Student ID and Parent Mobile Number are required."
             });
+
         }
 
         if (!/^[0-9]{10}$/.test(parentMobile)) {
+
             return res.status(400).json({
                 success: false,
                 message:
                     "Enter a valid 10-digit Parent Mobile Number."
             });
+
         }
 
-        // ---------------------------------------------
-        // CHECK CONFIGURATION
-        // ---------------------------------------------
-
-        if (
-            !STUDENT_ID_COLUMN ||
-            !PARENT_MOBILE_COLUMN
-        ) {
-            console.error(
-                "Missing STUDENT_ID_COLUMN or PARENT_MOBILE_COLUMN"
-            );
-
-            return res.status(500).json({
-                success: false,
-                message:
-                    "Student login is not configured on the server."
-            });
-        }
-
-        // ---------------------------------------------
-        // VERIFY STUDENT
-        // ---------------------------------------------
+        // FIND MATCHING STUDENT
 
         const { data, error } = await supabase
             .from(STUDENTS_TABLE)
@@ -202,6 +205,7 @@ app.post("/api/parent-login", async (req, res) => {
             .limit(1);
 
         if (error) {
+
             console.error(
                 "PARENT LOGIN DB ERROR:",
                 error
@@ -212,33 +216,41 @@ app.post("/api/parent-login", async (req, res) => {
                 message:
                     "Unable to verify student details."
             });
+
         }
 
+        // STUDENT NOT FOUND
+
         if (!data || data.length === 0) {
+
             return res.status(401).json({
                 success: false,
                 message:
                     "Student ID or Parent Mobile Number is incorrect."
             });
+
         }
 
         const student = data[0];
 
-        // Do not send institution-wide data here.
-        // Remove sensitive fields before responding.
+        // DO NOT SEND PASSWORD FIELDS
+
         const {
             password,
             login_password,
             ...safeStudent
         } = student;
 
+        // SUCCESS
+
         return res.json({
             success: true,
-            message: "Login successful.",
+            message: "Parent login successful.",
             student: safeStudent
         });
 
     } catch (error) {
+
         console.error(
             "PARENT LOGIN SERVER ERROR:",
             error
@@ -249,7 +261,9 @@ app.post("/api/parent-login", async (req, res) => {
             message:
                 "Parent login failed. Please try again."
         });
+
     }
+
 });
 
 // =====================================================
@@ -257,30 +271,36 @@ app.post("/api/parent-login", async (req, res) => {
 // =====================================================
 
 app.post("/api/logout", (req, res) => {
+
     res.json({
         success: true,
         message: "Logged out successfully"
     });
+
 });
 
 // =====================================================
-// INSTITUTION DASHBOARD
+// SERVE HTML
 // =====================================================
 
 app.get("/", (req, res) => {
+
     res.sendFile(
         path.join(
             __dirname,
             "institution-access.html"
         )
     );
+
 });
 
 // =====================================================
 // STATIC FILES
 // =====================================================
 
-app.use(express.static(__dirname));
+app.use(
+    express.static(__dirname)
+);
 
 // =====================================================
 // START SERVER
@@ -290,8 +310,10 @@ app.listen(
     PORT,
     "0.0.0.0",
     () => {
+
         console.log(
             `Cezonal Institution Access running on port ${PORT}`
         );
+
     }
 );
