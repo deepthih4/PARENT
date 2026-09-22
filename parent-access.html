@@ -4080,138 +4080,110 @@ async function restoreInstitutionSession(){
     }
 }
 
-async function login(){
+async function login(e) {
 
-    const loginId =
-        document
-        .getElementById("loginId")
+    e.preventDefault();
+
+    hideError();
+
+    const mobile = document
+        .getElementById("loginParentMobile")
         .value
         .trim();
 
-    const password =
-        document
-        .getElementById("loginPassword")
+    const admission = document
+        .getElementById("loginAdmission")
         .value
         .trim();
 
-    const errorBox =
-        document.getElementById("loginError");
+    const btn = document.getElementById("loginBtn");
 
-    const button =
-        document.querySelector(".login-btn");
+    if (!mobile || !admission) {
 
-    errorBox.style.display = "none";
+        showError(
+            "Please enter Parent Mobile and Admission Number."
+        );
 
-    if(!loginId || !password){
-        errorBox.textContent =
-            "Please enter login ID and password.";
-        errorBox.style.display = "block";
         return;
     }
 
-    button.disabled = true;
-    button.textContent = "Checking...";
+    btn.disabled = true;
+    btn.textContent = "Checking...";
 
-    try{
+    try {
 
-        const response = await fetch(
-            API_URL + "/api/login",
-            {
-                method:"POST",
-                credentials:"same-origin",
-                headers:{
-                    "Content-Type":"application/json",
-                    "Accept":"application/json"
-                },
-                body:JSON.stringify({
-                    loginId,
-                    password
-                })
-            }
-        );
+        const response = await fetch("/api/login", {
 
-        const contentType =
-            response.headers.get("content-type") || "";
+            method: "POST",
 
-        let result;
+            headers: {
+                "Content-Type": "application/json"
+            },
 
-        if(contentType.includes("application/json")){
-            result = await response.json();
-        }else{
-            const rawText = await response.text();
+            body: JSON.stringify({
 
-            if(rawText.trim().startsWith("<!DOCTYPE") ||
-               rawText.trim().startsWith("<html")){
-                throw new Error(
-                    "Render is serving the HTML page instead of /api/login. " +
-                    "Make sure this project is deployed as a Node/Express Web Service " +
-                    "with Start Command: npm start."
-                );
-            }
+                parentMobile: mobile,
 
-            throw new Error(
-                rawText.slice(0,180) ||
-                "Server returned an invalid response."
+                admission: admission
+
+            })
+
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+
+            showError(
+                result.message ||
+                "Student not found. Check Parent Mobile and Admission Number."
             );
+
+            return;
         }
 
-        if(!response.ok || !result.success){
-            throw new Error(
-                result?.message || "Invalid login details."
-            );
-        }
+        // Student received from Render server
+        currentStudent = result.student;
 
-        const row = result.institution;
+        // Institution received from Render server
+        currentInstitution = result.institution || null;
 
-        institution = {
-            id: row.id,
-            institutionId: row.institution_id,
-            type: String(row.institution_type || "School").toLowerCase(),
-            name: row.institution_name || "Institution",
-            branch: row.branches || "",
-            mobile: row.mobile || "",
-            email: row.email || "",
-            address: row.address || "",
-            logoUrl: row.logo_url || ""
-        };
+        sessionStorage.setItem(
+            "cezonal_parent_session",
+            JSON.stringify({
 
-        localStorage.setItem(
-            "institution_access",
-            JSON.stringify(institution)
+                student_id:
+                    currentStudent.id,
+
+                institution_id:
+                    currentStudent.institution_id,
+
+                parent_type:
+                    currentParentType
+
+            })
         );
 
-        document
-            .getElementById("loginScreen")
-            .style.display = "none";
+        await openApp();
 
-        document
-            .getElementById("app")
-            .style.display = "block";
+    } catch (err) {
 
-        configureInstitution();
-        openPage("dashboard");
-        await loadAcademicFeeSetup();
-        renderCourses();
-        renderSemesters();
-        await loadStudentsFromSupabase();
+        console.error(
+            "LOGIN ERROR:",
+            err
+        );
 
-    }catch(error){
+        showError(
+            "Login failed: " +
+            (err?.message || String(err))
+        );
 
-        console.error(error);
+    } finally {
 
-        errorBox.textContent =
-            error.message ||
-            "Unable to login.";
-
-        errorBox.style.display = "block";
-
-    }finally{
-
-        button.disabled = false;
-        button.textContent = "Login";
+        btn.disabled = false;
+        btn.textContent = "Login";
 
     }
-
 }
 
 
