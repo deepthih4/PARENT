@@ -30,7 +30,63 @@ app.get("/api/health", (req, res) => {
     message: "Cezonal Parent Portal Server Running"
   });
 });
+app.post("/api/login", async (req, res) => {
+    try {
 
+        if (!supabase) {
+            return res.status(500).json({
+                success: false,
+                message: "Supabase is not configured"
+            });
+        }
+
+        const { loginId, password } = req.body;
+
+        if (!loginId || !password) {
+            return res.status(400).json({
+                success: false,
+                message: "Login ID and password are required"
+            });
+        }
+
+        const { data, error } = await supabase
+            .from("institutions")
+            .select("*")
+            .eq("institution_id", loginId)
+            .eq("access_password", password)
+            .limit(1);
+
+        if (error) {
+            console.error("LOGIN ERROR:", error);
+
+            return res.status(500).json({
+                success: false,
+                message: error.message
+            });
+        }
+
+        if (!data || data.length === 0) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid login details"
+            });
+        }
+
+        return res.json({
+            success: true,
+            institution: data[0]
+        });
+
+    } catch (error) {
+
+        console.error("SERVER LOGIN ERROR:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Login failed"
+        });
+    }
+});
 // PARENT PORTAL HOME
 app.get("/", (req, res) => {
   res.sendFile(
