@@ -1,319 +1,1592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Cezonal Parent Portal</title>
 
-const express = require("express");
-const path = require("path");
-const { createClient } = require("@supabase/supabase-js");
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#f6f7f9;--white:#fff;--text:#111;--muted:#858585;--border:#e5e7eb;--green:#16834b;--red:#d64545}
+body{font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+button,input{font:inherit}
+#loginPage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{width:100%;max-width:420px;background:#fff;border:1px solid var(--border);border-radius:18px;padding:32px}
+.logo{font-size:22px;font-weight:800}.portal{font-size:10px;color:#888;letter-spacing:.7px;margin-top:5px;margin-bottom:34px}
+.login-card h1{font-size:24px}.login-card .sub{font-size:12px;color:#888;margin:7px 0 25px}
+.field{margin-bottom:16px}.field label{display:block;font-size:12px;font-weight:600;margin-bottom:7px}
+.field input{width:100%;height:46px;border:1px solid #ddd;border-radius:9px;padding:0 13px;outline:none}.field input:focus{border-color:#111}
+.login-btn{width:100%;height:47px;border:0;border-radius:9px;background:#111;color:#fff;font-weight:700;cursor:pointer}.login-btn:disabled{opacity:.6;cursor:wait}
+.login-help{text-align:center;color:#999;font-size:10px;line-height:1.5;margin-top:16px}
+#errorBox{display:none;background:#fff0f0;color:#b42323;border:1px solid #ffd0d0;border-radius:8px;padding:10px;font-size:11px;margin-bottom:14px}
+.portal-select{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.portal-option{height:44px;border:1px solid #ddd;border-radius:9px;background:#fff;color:#666;font-size:12px;font-weight:600;cursor:pointer}
+.portal-option.active{background:#111;color:#fff;border-color:#111}
+@media(max-width:450px){.portal-select{gap:7px}.portal-option{font-size:11px}}
 
-const app = express();
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:235px;background:#fff;border-right:1px solid var(--border);padding:24px 15px}
+.student-brand{padding:0 8px 22px;border-bottom:1px solid #eee;margin-bottom:20px}.brand-row{display:flex;align-items:center;gap:11px}
+.avatar{width:44px;height:44px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.student-brand h3{font-size:13px}.student-brand p{font-size:10px;color:#888;margin-top:4px}
+.menu button{width:100%;border:0;background:transparent;padding:12px 13px;border-radius:8px;text-align:left;font-size:13px;color:#666;margin-bottom:5px;cursor:pointer}.menu button.active,.menu button:hover{background:#111;color:#fff}
+.logout{position:absolute;left:15px;right:15px;bottom:20px;border:1px solid #ddd;background:#fff;padding:11px;border-radius:8px;cursor:pointer}
+.main{margin-left:235px}.header{height:76px;background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 30px}.header h2{font-size:18px}.header p{font-size:11px;color:#888;margin-top:4px}.profile-circle{width:38px;height:38px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px}
+.content{padding:28px}.page{display:none}.page.active{display:block}
+.welcome{background:#fff;border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:20px}.welcome h1{font-size:21px}.welcome p{color:#888;font-size:11px;margin-top:6px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:20px}.stat{background:#fff;border:1px solid var(--border);border-radius:12px;padding:19px}.stat span{font-size:10px;color:#888}.stat h2{font-size:23px;margin-top:10px}
+.card{background:#fff;border:1px solid var(--border);border-radius:13px;padding:22px;margin-bottom:20px}.card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.card-head h3{font-size:15px}.card-head p{font-size:10px;color:#888;margin-top:4px}
+.profile-top{display:flex;align-items:center;gap:15px;margin-bottom:20px}.big-avatar{width:70px;height:70px;border-radius:50%;background:#111;color:#fff;display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:700;flex-shrink:0}.profile-top h2{font-size:19px}.profile-top p{font-size:11px;color:#888;margin-top:5px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.info{padding:14px;border:1px solid #eee;border-radius:9px}.info span{font-size:9px;color:#888;display:block}.info p{font-size:12px;margin-top:6px;word-break:break-word}.info.full{grid-column:1/-1}
+.attendance-main{display:flex;align-items:center;gap:25px}.att-circle{width:110px;height:110px;border-radius:50%;border:8px solid var(--green);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}.att-circle strong{font-size:25px}.att-circle span{font-size:9px;color:#888;margin-top:3px}.att-details{flex:1}.att-item{display:flex;justify-content:space-between;padding:11px 0;border-bottom:1px solid #eee;font-size:12px}.present{color:var(--green);font-weight:600}.absent{color:var(--red);font-weight:600}
+.history-row{display:flex;justify-content:space-between;align-items:center;padding:13px 0;border-bottom:1px solid #eee}.history-row:last-child{border-bottom:0}.history-date{font-size:11px}.history-status{font-size:10px;padding:5px 8px;border-radius:20px}.history-status.present{background:#eaf8ef;color:var(--green)}.history-status.absent{background:#fff0f0;color:#c83c3c}
+.progress-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}.progress-box{border:1px solid #eee;border-radius:10px;padding:16px}.progress-box span{display:block;font-size:9px;color:#888}.progress-box strong{display:block;font-size:21px;margin-top:7px}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;min-width:650px}th{font-size:10px;color:#777;text-align:left;padding:11px;border-bottom:1px solid #eee}td{font-size:12px;padding:13px 11px;border-bottom:1px solid #eee}.grade{display:inline-block;padding:5px 8px;border-radius:20px;background:#f1f1f1;font-size:9px;font-weight:600}.progress-bar{width:100%;height:7px;background:#eee;border-radius:10px;overflow:hidden;margin-top:8px}.progress-fill{height:100%;background:#111;border-radius:10px}
+.fee-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.fee-box{border:1px solid #eee;border-radius:10px;padding:17px}.fee-box span{font-size:9px;color:#888}.fee-box strong{display:block;font-size:20px;margin-top:8px}.fee-paid{color:var(--green)}.fee-pending{color:var(--red)}.empty{text-align:center;padding:40px 20px;color:#999;font-size:12px}
+@media(max-width:800px){.sidebar{display:none}.main{margin-left:0}.header{height:68px;padding:0 16px}.content{padding:15px}.stats{grid-template-columns:1fr 1fr;gap:10px}.stat{padding:15px}.stat h2{font-size:20px}.info-grid{grid-template-columns:1fr}.info.full{grid-column:auto}.progress-summary{grid-template-columns:1fr 1fr}.fee-summary{grid-template-columns:1fr 1fr}}
+@media(max-width:450px){.login-card{padding:25px 20px}.welcome{padding:18px}.attendance-main{flex-direction:column;align-items:center}.att-details{width:100%}.progress-summary{grid-template-columns:1fr}.profile-top h2{font-size:17px}}
+</style>
 
-const PORT = process.env.PORT || 10000;
+<style>
+/* ===== CEZONAL PARENT PORTAL — PROFESSIONAL BLUE UI ===== */
+:root{
+ --bg:#f3f6fb;--white:#fff;--text:#17233c;--muted:#77849b;
+ --border:#e1e8f3;--primary:#3157d5;--primary2:#4f72e8;
+ --navy:#18295c;--green:#16834b;--red:#d64545;
+}
+body{
+ font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+ background:linear-gradient(180deg,#f3f6fc,#f8faff);color:var(--text)
+}
+/* login */
+#loginPage{
+ background:
+ radial-gradient(circle at 15% 15%,rgba(79,114,232,.13),transparent 28%),
+ radial-gradient(circle at 90% 85%,rgba(49,87,213,.08),transparent 25%),
+ #f5f8fd
+}
+.login-card{
+ max-width:430px;border:1px solid #e0e7f3;border-radius:20px;padding:34px;
+ box-shadow:0 18px 55px rgba(35,58,120,.10)
+}
+.logo{color:#2445b7;font-size:23px;letter-spacing:.2px}
+.portal{color:#8290aa;font-weight:700;letter-spacing:1.4px}
+.login-card h1{font-size:23px;color:#17233c}
+.login-card .sub{color:#8390a5}
+.field label{color:#45536d;font-size:11px}
+.field input{
+ height:47px;border-color:#dce4f0;border-radius:10px;color:#17233c;background:#fbfcff
+}
+.field input:focus{border-color:#5575df;box-shadow:0 0 0 3px rgba(73,105,218,.11)}
+.portal-option{
+ border-color:#d9e1ef;border-radius:10px;color:#60708d;background:#f8faff
+}
+.portal-option.active{
+ background:linear-gradient(135deg,#4f72e8,#3157d5);border-color:#3157d5;
+ box-shadow:0 6px 16px rgba(49,87,213,.18)
+}
+.login-btn{
+ height:48px;border-radius:10px;
+ background:linear-gradient(135deg,#4c6fe5,#3157d5);
+ box-shadow:0 8px 20px rgba(49,87,213,.22)
+}
+/* app shell */
+.sidebar{
+ width:255px;padding:24px 16px;
+ background:linear-gradient(180deg,#18295c 0%,#223a7a 100%);
+ border-right:0;box-shadow:9px 0 30px rgba(32,55,117,.09)
+}
+.student-brand{border-bottom-color:rgba(255,255,255,.13);padding:0 7px 23px}
+.avatar,.profile-circle,.big-avatar{
+ background:linear-gradient(135deg,#6684ed,#3157d5);color:#fff
+}
+.student-brand h3{color:#fff;font-size:13px}
+.student-brand p{color:#b8c5e9}
+.menu button{
+ color:#cbd5f3;padding:13px 14px;border-radius:10px;font-weight:600;font-size:12px
+}
+.menu button:hover{background:rgba(255,255,255,.08);color:#fff}
+.menu button.active{
+ background:linear-gradient(135deg,#4f72e8,#3157d5);color:#fff;
+ box-shadow:0 7px 17px rgba(16,35,89,.24)
+}
+.logout{
+ left:16px;right:16px;color:#e6ebff;border-color:rgba(255,255,255,.18);
+ background:rgba(255,255,255,.07)
+}
+.main{margin-left:255px}
+.header{
+ height:78px;padding:0 32px;position:sticky;top:0;z-index:10;
+ background:rgba(255,255,255,.94);backdrop-filter:blur(12px);
+ border-bottom-color:#e3e9f3
+}
+.header h2{color:#17233c}.header p{color:#8390a5}
+.content{padding:30px;max-width:1450px}
+.welcome{
+ padding:25px;border-color:#e1e8f3;border-radius:15px;
+ background:linear-gradient(135deg,#fff 55%,#f1f5ff);
+ box-shadow:0 7px 24px rgba(39,63,125,.04)
+}
+.welcome h1{color:#17233c}
+.stats{gap:14px}
+.stat,.card{
+ border-color:#e1e8f3;box-shadow:0 6px 22px rgba(38,61,119,.045)
+}
+.stat{border-radius:13px;padding:19px 18px;position:relative;overflow:hidden}
+.stat:before{
+ content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#5575df
+}
+.stat span,.info span,.progress-box span,.fee-box span{color:#8290a6}
+.stat h2{color:#243a72}
+.card{border-radius:15px;padding:23px}
+.info{
+ background:#f9fbff;border-color:#e5ebf4;border-radius:10px;padding:14px
+}
+.progress-box,.fee-box{
+ background:#f9fbff;border-color:#e4eaf4;border-radius:11px
+}
+.progress-fill{background:linear-gradient(90deg,#5575df,#3157d5)}
+.att-circle{
+ border-color:#35a979;box-shadow:0 0 0 7px #effaf5
+}
+.grade{background:#edf2ff;color:#3157d5}
+th{color:#697994;background:#fafbfe}
+@media(max-width:800px){
+ .sidebar{display:none}.main{margin-left:0}.header{height:68px;padding:0 16px}
+ .content{padding:15px}.welcome{padding:19px}.stats{gap:10px}
+}
+@media(max-width:450px){
+ #loginPage{padding:14px}.login-card{padding:27px 20px;border-radius:17px}
+ .card{padding:18px}.stat{padding:15px}
+}
+</style>
 
-// =====================================================
-// SUPABASE CONNECTION
-// =====================================================
 
-const SUPABASE_URL = process.env.SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error(
-        "Missing SUPABASE_URL or SUPABASE_ANON_KEY in Render Environment"
-    );
+<style>
+/* =========================================================
+   CEZONAL PARENT APP — SCHOOL APP STYLE
+   Keeps existing Supabase/JS IDs and functionality intact.
+========================================================= */
+body{
+  background:#f5f7fb;
+  color:#17233c;
+}
+.sidebar{
+  width:230px;
+}
+.main{
+  margin-left:230px;
+}
+.content{
+  max-width:1200px;
+  margin:0 auto;
 }
 
-const supabase = createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-);
+/* dashboard hero */
+.app-hero{
+  height:96px;
+  margin:-30px -30px 0;
+  padding:0 28px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:linear-gradient(135deg,#3157d5 0%,#4f72e8 55%,#6b87ef 100%);
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+}
+.app-hero:after{
+  content:"";
+  position:absolute;
+  width:220px;height:220px;
+  border-radius:50%;
+  right:-70px;top:-120px;
+  background:rgba(255,255,255,.10);
+}
+.hero-back{
+  width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.15);
+  font-size:25px;line-height:1;
+}
+.hero-profile{
+  width:39px;height:39px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#fff;color:#3157d5;
+  font-size:11px;font-weight:800;
+  z-index:1;
+}
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+/* student strip */
+.student-strip{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  background:#fff;
+  border:1px solid #e3e9f3;
+  border-radius:0 0 15px 15px;
+  padding:17px 20px;
+  box-shadow:0 6px 20px rgba(30,50,100,.05);
+}
+.student-photo{
+  width:58px;height:58px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+  background:linear-gradient(135deg,#6684ed,#3157d5);
+  color:#fff;font-size:17px;font-weight:800;
+}
+.student-strip-info h1{
+  font-size:17px;
+  color:#17233c;
+  margin:0;
+}
+.student-strip-info p{
+  font-size:11px;
+  color:#687791;
+  margin-top:4px;
+}
+.student-strip-info small{
+  display:block;
+  font-size:9px;
+  color:#8b97aa;
+  margin-top:5px;
+}
 
-// =====================================================
-// STUDENT TABLE SETTINGS
-// =====================================================
+/* section labels */
+.app-section-title{
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:1px;
+  color:#7a879d;
+  margin:24px 2px 10px;
+}
+.recent-title{
+  margin-top:23px;
+}
 
-// Supabase table name
-const STUDENTS_TABLE = "students";
+/* tile grid */
+.app-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+.app-tile{
+  min-height:116px;
+  border:1px solid #e2e8f2;
+  background:#fff;
+  border-radius:13px;
+  box-shadow:0 5px 15px rgba(35,58,110,.045);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  cursor:pointer;
+  color:#243454;
+  transition:.18s ease;
+}
+.app-tile:hover{
+  transform:translateY(-2px);
+  border-color:#cdd8f2;
+  box-shadow:0 9px 22px rgba(35,58,110,.08);
+}
+.app-tile span{
+  font-size:10px;
+  line-height:1.25;
+  font-weight:700;
+  text-align:center;
+}
+.app-icon{
+  width:49px;height:49px;
+  border-radius:13px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:23px;
+  font-weight:800;
+  border:1px solid rgba(0,0,0,.04);
+}
+.icon-blue{background:#eaf1ff;color:#3d66d7}
+.icon-purple{background:#eeeaff;color:#6752c9}
+.icon-orange{background:#fff0e3;color:#e78a2e}
+.icon-green{background:#e8f8ef;color:#24955b}
+.icon-red{background:#fff0f0;color:#d65353}
+.icon-indigo{background:#e9edff;color:#455fd1}
 
-// Supabase Student ID column
-const STUDENT_ID_COLUMN = "student_id";
+/* summary */
+.summary-cards{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+}
+.summary-card{
+  background:#fff;
+  border:1px solid #e2e8f2;
+  border-radius:12px;
+  padding:15px;
+}
+.summary-card span{
+  display:block;
+  font-size:8px;
+  color:#8290a6;
+  font-weight:700;
+  letter-spacing:.5px;
+}
+.summary-card strong{
+  display:block;
+  color:#243a72;
+  font-size:21px;
+  margin-top:7px;
+}
+.summary-card small{
+  display:block;
+  color:#97a1b2;
+  font-size:9px;
+  margin-top:4px;
+}
+.dashboard-progress-card{
+  margin-top:12px;
+}
+.small-view-btn{
+  border:1px solid #dce4f1;
+  background:#f7f9fd;
+  color:#3157d5;
+  padding:7px 10px;
+  border-radius:7px;
+  font-size:9px;
+  font-weight:700;
+  cursor:pointer;
+}
+.mobile-bottom-nav{
+  display:none;
+}
 
-// Supabase Parent Mobile column
-const PARENT_MOBILE_COLUMN = "parent_mobile";
+/* desktop: make old sidebar less dominant */
+@media(min-width:801px){
+  .student-strip{margin-top:0}
+}
 
-// =====================================================
-// HEALTH CHECK
-// =====================================================
+/* tablet/mobile */
+@media(max-width:800px){
+  .sidebar{display:none}
+  .main{margin-left:0}
+  .header{
+    height:64px;
+    padding:0 16px;
+  }
+  .header h2{font-size:15px}
+  .header p{font-size:9px}
+  .content{
+    padding:0 12px 78px;
+  }
+  .page{min-height:calc(100vh - 64px)}
+  .app-hero{
+    margin:0 -12px;
+    height:86px;
+    padding:0 16px;
+  }
+  .student-strip{
+    margin:0 -12px;
+    border-radius:0 0 14px 14px;
+    padding:14px 15px;
+  }
+  .app-grid{
+    grid-template-columns:repeat(3,1fr);
+    gap:8px;
+  }
+  .app-tile{
+    min-height:105px;
+    border-radius:12px;
+  }
+  .app-icon{
+    width:44px;height:44px;
+    font-size:20px;
+  }
+  .summary-cards{
+    grid-template-columns:1fr 1fr 1fr;
+    gap:8px;
+  }
+  .summary-card{
+    padding:12px 9px;
+  }
+  .summary-card strong{
+    font-size:17px;
+  }
+  .summary-card small{
+    font-size:8px;
+  }
+  .dashboard-progress-card{
+    padding:15px;
+  }
+  .mobile-bottom-nav{
+    position:fixed;
+    display:flex;
+    left:0;right:0;bottom:0;
+    height:64px;
+    background:rgba(255,255,255,.97);
+    backdrop-filter:blur(12px);
+    border-top:1px solid #e1e7f1;
+    z-index:50;
+    box-shadow:0 -5px 20px rgba(25,45,90,.07);
+  }
+  .mobile-bottom-nav button{
+    flex:1;
+    border:0;
+    background:transparent;
+    color:#7c8799;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:3px;
+    cursor:pointer;
+  }
+  .mobile-bottom-nav button span{
+    font-size:18px;
+    line-height:18px;
+  }
+  .mobile-bottom-nav button small{
+    font-size:8px;
+    font-weight:700;
+  }
+  .mobile-bottom-nav button.active,
+  .mobile-bottom-nav button:hover{
+    color:#3157d5;
+  }
+}
 
-app.get("/api/health", (req, res) => {
-    res.json({
-        success: true,
-        message: "Cezonal Institution Access Server Running"
-    });
-});
+/* small phones */
+@media(max-width:430px){
+  .header{
+    display:none;
+  }
+  .content{
+    padding:0 9px 76px;
+  }
+  .app-hero{
+    margin:0 -9px;
+    height:78px;
+  }
+  .student-strip{
+    margin:0 -9px;
+    padding:12px;
+  }
+  .student-photo{
+    width:52px;height:52px;
+    font-size:15px;
+  }
+  .student-strip-info h1{font-size:15px}
+  .student-strip-info p{font-size:9px}
+  .app-section-title{
+    margin-top:19px;
+    font-size:9px;
+  }
+  .app-tile{
+    min-height:96px;
+  }
+  .app-icon{
+    width:40px;height:40px;
+    font-size:18px;
+    border-radius:11px;
+  }
+  .app-tile span{
+    font-size:9px;
+  }
+  .summary-card span{font-size:7px}
+  .summary-card strong{font-size:15px}
+  .summary-card small{font-size:7px}
+  
+}
+</style>
 
-// =====================================================
-// INSTITUTION LOGIN
-// Login ID + Password
-// =====================================================
 
-app.post("/api/login", async (req, res) => {
+<style>
+.mobile-page-back{display:none;border:0;background:transparent;color:#17233c;font-size:28px;line-height:1;cursor:pointer;padding:0 8px 0 0;flex-shrink:0}
+@media(max-width:800px){
+  .mobile-page-back{display:flex;align-items:center;justify-content:center}
+  .header>div:first-child{display:flex;align-items:center}
+  .header>div:first-child>div{display:block}
+}
+@media(max-width:430px){
+  .header.mobile-section-header{display:flex;height:58px;padding:0 12px}
+  .header.mobile-section-header .profile-circle{display:flex}
+}
+</style>
+
+<style>
+/* ===== CEZONAL PARENT PORTAL — COMPACT PREMIUM UI OVERRIDE ===== */
+:root{
+  --p-blue:#3157d5;
+  --p-blue2:#5577e7;
+  --p-navy:#1d356f;
+  --p-bg:#f4f7fc;
+  --p-border:#e4eaf4;
+}
+body{background:var(--p-bg)}
+.sidebar{
+  width:230px;
+  background:linear-gradient(180deg,#1b326c 0%,#294b8b 100%);
+}
+.main{margin-left:230px}
+.header{
+  height:70px;
+  padding:0 28px;
+  box-shadow:0 1px 0 rgba(30,55,110,.03);
+}
+.content{
+  width:100%;
+  max-width:1320px;
+  padding:24px 28px 34px;
+  margin:0 auto;
+}
+
+/* Dashboard top */
+.app-hero{
+  height:82px;
+  margin:-24px -28px 0;
+  padding:0 26px;
+  border-radius:0;
+  background:linear-gradient(120deg,#3157d5,#5879e8);
+}
+.hero-back{width:32px;height:32px;font-size:21px}
+.hero-profile{width:36px;height:36px}
+.student-strip{
+  padding:14px 18px;
+  border-radius:0 0 14px 14px;
+}
+.student-photo{width:50px;height:50px;font-size:15px}
+.student-strip-info h1{font-size:16px}
+.student-strip-info p{font-size:10px}
+.student-strip-info small{font-size:8px}
+
+/* Services */
+.app-section-title{
+  margin:20px 2px 9px;
+  font-size:9px;
+}
+.app-grid{
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+}
+.app-tile{
+  min-height:92px;
+  gap:7px;
+  border-radius:12px;
+  box-shadow:0 4px 13px rgba(35,58,110,.035);
+}
+.app-tile:hover{
+  transform:translateY(-1px);
+  box-shadow:0 7px 18px rgba(35,58,110,.07);
+}
+.app-icon{
+  width:42px;height:42px;
+  border-radius:12px;
+  font-size:19px;
+}
+.app-tile span{font-size:9px}
+
+/* Academic summary */
+.recent-title{margin-top:19px}
+.summary-cards{gap:10px}
+.summary-card{
+  padding:13px 14px;
+  border-radius:11px;
+}
+.summary-card span{font-size:7.5px}
+.summary-card strong{font-size:19px;margin-top:6px}
+.summary-card small{font-size:8px}
+.dashboard-progress-card{
+  margin-top:10px;
+  padding:18px;
+}
+.card-head{margin-bottom:14px}
+.card-head h3{font-size:14px}
+
+/* Inner pages */
+.card{
+  border-radius:14px;
+  padding:20px;
+  box-shadow:0 5px 18px rgba(35,58,110,.04);
+}
+.progress-box,.fee-box{padding:14px}
+.info{padding:13px}
+
+/* Bottom nav only on mobile */
+@media(max-width:800px){
+  .main{margin-left:0}
+  .content{
+    max-width:none;
+    padding:0 11px 76px;
+  }
+  .header{height:60px;padding:0 13px}
+  .app-hero{
+    height:72px;
+    margin:0 -11px;
+    padding:0 14px;
+  }
+  .student-strip{
+    margin:0 -11px;
+    padding:11px 13px;
+  }
+  .student-photo{width:46px;height:46px}
+  .student-strip-info h1{font-size:14px}
+  .app-section-title{margin-top:16px;margin-bottom:8px}
+  .app-grid{gap:7px}
+  .app-tile{min-height:84px}
+  .app-icon{width:37px;height:37px;font-size:17px}
+  .summary-cards{gap:7px}
+  .summary-card{padding:10px 8px}
+  .summary-card strong{font-size:15px}
+  .dashboard-progress-card{padding:14px}
+}
+@media(max-width:430px){
+  .content{padding:0 8px 74px}
+  .app-hero{margin:0 -8px;height:68px}
+  .student-strip{margin:0 -8px;padding:10px 11px}
+  .app-grid{grid-template-columns:repeat(3,1fr);gap:6px}
+  .app-tile{min-height:78px;border-radius:10px}
+  .app-icon{width:34px;height:34px;font-size:16px;border-radius:10px}
+  .app-tile span{font-size:8px}
+  .summary-card strong{font-size:14px}
+  .mobile-bottom-nav{height:60px}
+}
+</style>
+
+<style>/* Remove the blue Dashboard banner; retain the student details and services. */
+.app-hero{display:none!important;}
+.student-strip{border-radius:14px;margin-top:0;}
+@media(max-width:800px){.student-strip{margin-top:0;}}
+</style>
+
+<style id="institutionMatchedParentUI">
+/* Parent portal styled to match the Institution Management dashboard. */
+:root{--bg:#f2f5fb;--white:#fff;--text:#17213d;--muted:#8a91a4;--border:#e7eaf2;--primary:#29218f;--primary-soft:#eeedff;--green:#25b86a;--red:#ef5d67}
+body{background:#06264a!important;color:#17213d}
+#parentApp{background:#06264a;min-height:100vh;padding:18px}
+#parentApp .sidebar{top:80px;left:18px;bottom:18px;width:205px;padding:18px 10px;background:#fff;border:0;border-radius:0 0 0 12px;box-shadow:none;z-index:20}
+#parentApp .student-brand{padding:0 7px 17px;border-bottom:1px solid #eceef5;margin-bottom:15px}
+#parentApp .student-brand h3{color:#17213d;font-size:12px}
+#parentApp .student-brand p{color:#9aa0b0;font-size:10px}
+#parentApp .avatar,#parentApp .profile-circle,#parentApp .big-avatar,#parentApp .student-photo{background:#eeedff;color:#29218f}
+#parentApp .menu button{min-height:40px;margin-bottom:4px;padding:0 12px;border-radius:4px;background:transparent;color:#62697a;font-size:12px;font-weight:500}
+#parentApp .menu button:hover{background:#f6f6fb;color:#29218f}
+#parentApp .menu button.active{background:#29218f;color:#fff;box-shadow:0 5px 12px rgba(41,33,143,.15);font-weight:700}
+#parentApp .logout{position:absolute;left:10px;right:10px;bottom:16px;background:#f7f8fc;color:#5e6475;border:0;border-radius:8px;font-size:11px}
+#parentApp .main{margin-left:205px;min-height:calc(100vh - 36px);background:#fff;border-radius:0 0 12px 0}
+#parentApp .header{position:fixed;top:18px;left:18px;right:18px;height:62px;padding:0 24px;background:#fff;border:0;border-radius:12px 12px 0 0;box-shadow:none;z-index:25}
+#parentApp .header h2{font-size:15px;color:#17213d}
+#parentApp .header p{font-size:11px;color:#9aa0b0}
+#parentApp .profile-circle{width:38px;height:38px}
+#parentApp .content{width:100%;max-width:none;margin:0;padding:98px 28px 30px;background:#fff;min-height:calc(100vh - 36px)}
+#parentApp .student-strip{border:1px solid #e9ecf3;border-radius:9px;padding:17px 20px;box-shadow:0 5px 18px rgba(28,39,67,.04)}
+#parentApp .student-strip-info h1{font-size:19px}
+#parentApp .student-strip-info p{font-size:12px}
+#parentApp .student-strip-info small{font-size:10px}
+#parentApp .app-section-title{color:#29218f;font-size:10px;letter-spacing:.8px;margin:23px 2px 12px}
+#parentApp .app-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:13px}
+#parentApp .app-tile{min-height:100px;border:1px solid #e9ecf3;border-radius:9px;box-shadow:0 5px 18px rgba(28,39,67,.04);color:#17213d}
+#parentApp .app-tile span{font-size:12px}
+#parentApp .app-icon{background:#eeedff;color:#29218f;border:0;border-radius:9px}
+#parentApp .summary-cards{gap:12px}
+#parentApp .summary-card{min-height:105px;border:0;border-radius:9px;padding:17px;color:#fff;box-shadow:0 5px 16px rgba(28,39,67,.06)}
+#parentApp .summary-card:nth-child(1){background:linear-gradient(135deg,#9a3cff,#7430ed)}
+#parentApp .summary-card:nth-child(2){background:linear-gradient(135deg,#ff987d,#ff7b69)}
+#parentApp .summary-card:nth-child(3){background:linear-gradient(135deg,#6253d8,#4d43bd)}
+#parentApp .summary-card span,#parentApp .summary-card strong,#parentApp .summary-card small{color:#fff!important}
+#parentApp .summary-card span{font-size:10px}
+#parentApp .summary-card strong{font-size:26px}
+#parentApp .summary-card small{font-size:10px;opacity:.85}
+#parentApp .card,#parentApp .stat,#parentApp .welcome{border:1px solid #e9ecf3;border-radius:9px;box-shadow:0 5px 18px rgba(28,39,67,.04);background:#fff}
+#parentApp .card-head h3{font-size:15px}
+#parentApp .card-head p{font-size:11px}
+#parentApp .info,#parentApp .progress-box,#parentApp .fee-box{background:#fff;border:1px solid #e9ecf3;border-radius:8px}
+#parentApp .progress-fill{background:#29218f}
+#parentApp .small-view-btn{color:#29218f;background:#eeedff;border-color:#eeedff}
+#parentApp th{background:#f8f9fc;color:#9298a8;font-size:10px}
+#parentApp td{font-size:12px}
+#parentApp .grade{background:#eeedff;color:#29218f}
+#parentApp .att-circle{border-color:#25b86a;box-shadow:0 0 0 7px #ecfbf3}
+#parentApp .mobile-bottom-nav{display:none}
+@media(max-width:800px){
+ body{background:#fff!important}
+ #parentApp{padding:0;background:#fff}
+ #parentApp .sidebar{display:none}
+ #parentApp .main{margin-left:0;border-radius:0;min-height:100vh}
+ #parentApp .header{top:0;left:0;right:0;height:61px;padding:0 13px;border-radius:0;border-bottom:1px solid #eceef5}
+ #parentApp .content{padding:77px 12px 78px;min-height:100vh}
+ #parentApp .page{min-height:0}
+ #parentApp .student-strip{margin:0;border-radius:9px}
+ #parentApp .app-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ #parentApp .app-tile{min-height:91px}
+ #parentApp .summary-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+ #parentApp .summary-card{min-height:91px;padding:12px 9px}
+ #parentApp .summary-card strong{font-size:18px}
+ #parentApp .mobile-bottom-nav{display:flex}
+ #parentApp .mobile-bottom-nav button.active,#parentApp .mobile-bottom-nav button:hover{color:#29218f}
+}
+@media(max-width:430px){
+ #parentApp .header{display:flex;height:61px}
+ #parentApp .content{padding:76px 9px 76px}
+ #parentApp .app-tile{min-height:82px}
+ #parentApp .app-tile span{font-size:10px}
+ #parentApp .summary-card strong{font-size:15px}
+ #parentApp .summary-card span{font-size:8px}
+ #parentApp .summary-card small{font-size:8px}
+ #parentApp .card{padding:16px}
+}
+</style>
+</head>
+<body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Login</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+#loginPage{
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#f7f9fc;
+}
+/* MAIN LOGIN BOX */
+.login-wrapper{
+    width:900px;
+    max-width:92%;
+    min-height:520px;
+    background:#fff;
+    border-radius:24px;
+    overflow:hidden;
+    display:flex;
+    box-shadow:0 15px 45px rgba(0,0,0,0.10);
+}
+
+/* CARTOON SIDE */
+.cartoon-section{
+    width:50%;
+    background:#eef6ff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding:40px;
+    text-align:center;
+}
+
+.cartoon-section img{
+    width:330px;
+    max-width:100%;
+    height:330px;
+    object-fit:contain;
+}
+
+.cartoon-section h2{
+    margin-top:10px;
+    font-size:25px;
+    color:#222;
+}
+
+.cartoon-section p{
+    margin-top:8px;
+    color:#777;
+    font-size:14px;
+}
+
+/* LOGIN SIDE */
+.login-section{
+    width:50%;
+    padding:55px 60px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+}
+
+.login-section h1{
+    font-size:32px;
+    color:#202124;
+    margin-bottom:8px;
+}
+
+.login-section .subtitle{
+    font-size:14px;
+    color:#888;
+    margin-bottom:35px;
+}
+
+.input-group{
+    margin-bottom:20px;
+}
+
+.input-group label{
+    display:block;
+    font-size:14px;
+    font-weight:600;
+    color:#333;
+    margin-bottom:8px;
+}
+
+.input-group input{
+    width:100%;
+    height:48px;
+    border:1px solid #dfe3e8;
+    border-radius:10px;
+    padding:0 15px;
+    font-size:15px;
+    outline:none;
+    transition:0.2s;
+}
+
+.input-group input:focus{
+    border-color:#4d90fe;
+    box-shadow:0 0 0 3px rgba(77,144,254,0.10);
+}
+
+.login-btn{
+    width:100%;
+    height:48px;
+    border:none;
+    border-radius:10px;
+    background:#1f73e8;
+    color:#fff;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    margin-top:5px;
+    transition:0.2s;
+}
+
+.login-btn:hover{
+    background:#155fc5;
+}
+
+.error{
+    display:none;
+    margin-top:15px;
+    color:#e53935;
+    font-size:13px;
+    text-align:center;
+}
+
+/* MOBILE */
+@media(max-width:700px){
+
+    body{
+        padding:20px;
+    }
+
+    .login-wrapper{
+        width:100%;
+        max-width:430px;
+        min-height:auto;
+        flex-direction:column;
+        border-radius:20px;
+    }
+
+    .cartoon-section{
+        width:100%;
+        padding:25px 20px 15px;
+    }
+
+    .cartoon-section img{
+        width:190px;
+        height:190px;
+    }
+
+    .cartoon-section h2{
+        font-size:21px;
+    }
+
+    .cartoon-section p{
+        font-size:13px;
+    }
+
+    .login-section{
+        width:100%;
+        padding:30px 25px 35px;
+    }
+
+    .login-section h1{
+        font-size:27px;
+    }
+
+    .login-section .subtitle{
+        margin-bottom:25px;
+    }
+}/* REMOVE BLUE BACKGROUND */
+html,
+body,
+#parentApp,
+.main,
+.content {
+    background: #ffffff !important;
+}
+
+/* SIDEBAR WHITE */
+.sidebar {
+    background: #ffffff !important;
+    border-right: 1px solid #e7eaf2 !important;
+}
+
+/* SIDEBAR TEXT */
+.student-brand h3 {
+    color: #17213d !important;
+}
+
+.student-brand p,
+.menu button {
+    color: #62697a !important;
+}
+
+/* ACTIVE MENU PURPLE */
+.menu button.active {
+    background: #29218f !important;
+    color: #ffffff !important;
+}
+
+/* HEADER WHITE */
+.header {
+    background: #ffffff !important;
+}
+</style>
+</head>
+
+<body>
+ 
+<section id="loginPage">
+<div class="login-wrapper">
+
+    <!-- CARTOON -->
+    <div class="cartoon-section">
+
+        <!-- Replace this image URL with your cartoon image -->
+        <img
+            src="picture.png"
+            alt="Student Cartoon"
+        >
+
+        <h2>Welcome Back!</h2>
+        <p>Login to continue to your dashboard</p>
+
+    </div>
+
+
+    <!-- LOGIN FORM -->
+    <div class="login-section">
+
+        <h1>Login</h1>
+        <p class="subtitle">Enter your login details</p>
+
+      <form id="loginForm">
+
+  <div class="input-group">
+    <label>Parent Mobile</label>
+    <input
+      type="tel"
+      id="loginParentMobile"
+      placeholder="Enter Parent Mobile"
+      required
+    >
+  </div>
+
+  <div class="input-group">
+    <label>Student ID</label>
+    <input
+      type="text"
+      id="loginAdmission"
+      placeholder="Enter Student ID"
+      required
+    >
+  </div>
+
+  <div id="errorBox"></div>
+
+  <button
+    type="submit"
+    class="login-btn"
+    id="loginBtn">
+    Login
+  </button>
+
+</form>
+    </div>
+</div>
+
+
+</section>
+<script>
+document.getElementById("loginForm")
+  .addEventListener("submit", login);
+</script>
+
+
+<section id="parentApp" style="display:none">
+<aside class="sidebar">
+<div class="student-brand"><div class="brand-row"><div class="avatar" id="sideAvatar">ST</div><div><h3 id="sideStudentName">Student</h3><p id="sideStudentCourse">Student</p></div></div></div>
+<div class="menu">
+<button class="active" onclick="openPage('dashboard',this)">Dashboard</button>
+<button onclick="openPage('progress',this)">Progress Record</button>
+<button onclick="openPage('attendance',this)">Attendance</button>
+<button onclick="openPage('fees',this)">Fee Details</button>
+<button onclick="openPage('profile',this)">Student Profile</button>
+</div>
+<button class="logout" onclick="logout()">Logout</button>
+</aside>
+<main class="main">
+<header class="header" id="appHeader"><div><button type="button" class="mobile-page-back" id="mobilePageBack" onclick="openPage('dashboard',document.querySelector('.menu button:nth-child(1)'))" aria-label="Back">‹</button><div><h2 id="pageTitle">Parent Dashboard</h2><p id="headerCollege">College</p></div></div><div class="profile-circle" id="headerAvatar">ST</div></header>
+<div class="content">
+<section class="page active" id="dashboard">
+  <div class="student-strip">
+    <div class="student-photo" id="dashboardAvatarLarge">ST</div>
+    <div class="student-strip-info">
+      <h1 id="welcomeText">Welcome</h1>
+      <p><span id="dashboardStudentName">Student</span> · <span id="dashboardStudentCourse">Course</span></p>
+      <small>Admission: <b id="dashboardAdmission">-</b></small>
+    </div>
+  </div>
+
+  <div class="app-section-title">STUDENT SERVICES</div>
+
+  <div class="app-grid">
+    <button class="app-tile" type="button" onclick="openPage('profile',document.querySelector('.menu button:nth-child(5)'))">
+      <div class="app-icon icon-blue">◉</div>
+      <span>Student<br>Profile</span>
+    </button>
+
+    <button class="app-tile" type="button" onclick="openPage('dashboard',document.querySelector('.menu button:nth-child(1)'))">
+      <div class="app-icon icon-purple">▦</div>
+      <span>Dashboard</span>
+    </button>
+
+    <button class="app-tile" type="button" onclick="openPage('progress',document.querySelector('.menu button:nth-child(2)'))">
+      <div class="app-icon icon-orange">▤</div>
+      <span>Progress<br>Report</span>
+    </button>
+
+    <button class="app-tile" type="button" onclick="openPage('attendance',document.querySelector('.menu button:nth-child(3)'))">
+      <div class="app-icon icon-green">✓</div>
+      <span>Attendance</span>
+    </button>
+
+    <button class="app-tile" type="button" onclick="openPage('fees',document.querySelector('.menu button:nth-child(4)'))">
+      <div class="app-icon icon-red">₹</div>
+      <span>Fee<br>Details</span>
+    </button>
+  </div>
+
+  <div class="app-section-title recent-title">ACADEMIC SUMMARY</div>
+
+  <div class="summary-cards">
+    <div class="summary-card">
+      <span>ATTENDANCE</span>
+      <strong id="dashboardAttendance">—</strong>
+      <small>Current record</small>
+    </div>
+    <div class="summary-card">
+      <span>OVERALL MARKS</span>
+      <strong id="dashboardMarks">—</strong>
+      <small>Academic performance</small>
+    </div>
+    <div class="summary-card">
+      <span>FEE BALANCE</span>
+      <strong id="dashboardFee">₹0</strong>
+      <small id="dashboardStatus">Active</small>
+    </div>
+  </div>
+
+  <div class="card dashboard-progress-card">
+    <div class="card-head">
+      <div><h3>Recent Progress</h3><p>Subject-wise performance</p></div>
+      <button class="small-view-btn" type="button" onclick="openPage('progress',document.querySelector('.menu button:nth-child(2)'))">View All</button>
+    </div>
+    <div id="dashboardProgress"></div>
+  </div>
+
+  <div class="mobile-bottom-nav">
+    <button class="active" onclick="openPage('dashboard',document.querySelector('.menu button:nth-child(1)'))"><span>⌂</span><small>Home</small></button>
+    <button onclick="openPage('progress',document.querySelector('.menu button:nth-child(2)'))"><span>▤</span><small>Progress</small></button>
+    <button onclick="openPage('attendance',document.querySelector('.menu button:nth-child(3)'))"><span>✓</span><small>Attendance</small></button>
+    <button onclick="openPage('profile',document.querySelector('.menu button:nth-child(5)'))"><span>◉</span><small>Profile</small></button>
+  </div>
+</section>
+<section class="page" id="progress"><div class="card"><div class="card-head"><div><h3>Progress Record</h3><p>Academic performance</p></div></div><div class="progress-summary" id="progressSummary"></div><div class="table-wrap"><table><thead><tr><th>SUBJECT</th><th>INTERNAL</th><th>EXAM</th><th>TOTAL</th><th>%</th><th>GRADE</th></tr></thead><tbody id="progressTable"></tbody></table></div></div></section>
+<section class="page" id="attendance"><div class="card"><div class="card-head"><div><h3>Attendance</h3><p>Student attendance record</p></div></div><div class="attendance-main"><div class="att-circle"><strong id="attendancePercent">—</strong><span>ATTENDANCE</span></div><div class="att-details"><div class="att-item"><span>Present Days</span><strong class="present" id="presentDays">0</strong></div><div class="att-item"><span>Absent Days</span><strong class="absent" id="absentDays">0</strong></div><div class="att-item"><span>Working Days</span><strong id="workingDays">0</strong></div></div></div></div><div class="card"><div class="card-head"><div><h3>Attendance History</h3><p>Daily attendance record</p></div></div><div id="attendanceHistory"></div></div></section>
+<section class="page" id="fees"><div class="card"><div class="card-head"><div><h3>Fee Details</h3><p>Student fee information</p></div></div><div class="fee-summary" id="feeSummary"></div></div></section>
+<section class="page" id="profile"><div class="card"><div class="profile-top"><div class="big-avatar" id="profileAvatar">ST</div><div><h2 id="profileName">Student</h2><p id="profileCourse">Course</p></div></div><div class="info-grid" id="profileInfo"></div></div></section>
+</div></main></section>
+
+<script>
+/* Render same-origin API; no Supabase credentials in HTML. */
+const API_URL = "";
+async function api(path, options={}) {
+  const r = await fetch(API_URL + path, {credentials:"same-origin",...options,headers:{"Content-Type":"application/json",...(options.headers||{})}});
+  const v = await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(v.message || v.error || "Request failed");
+  return v;
+}
+const db = {from(table){
+  const q={table,filters:[],sort:null,one:false};
+  const builder={
+    select(){return builder},
+    eq(k,v){q.filters.push([k,v]);return builder},
+    order(k,opts={}){q.sort=[k,opts.ascending!==false];return builder},
+    limit(){return builder},
+    maybeSingle(){q.one=true;return builder},
+    then(resolve,reject){return api("/api/data",{method:"POST",body:JSON.stringify(q)}).then(resolve,reject)}
+  };return builder;
+}};
+let currentStudent = null;
+let currentInstitution = null;
+let parentAttendanceRows = [];
+let parentProgressRows = [];
+let parentFeePayments = [];
+let parentCourseFees = [];
+let parentSemesterFees = [];
+let parentDataError = '';
+let parentRefreshBusy = false;
+let currentParentType = 'school';
+
+function cleanMobile(v){ return String(v||'').replace(/\D/g,''); }
+function initials(name){
+  const p=String(name||'Student').trim().split(/\s+/).filter(Boolean);
+  return p.length>1 ? (p[0][0]+p[p.length-1][0]).toUpperCase() : p[0].substring(0,2).toUpperCase();
+}
+function money(v){return '₹'+(Number(v)||0).toLocaleString('en-IN');}
+function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+function showError(msg){const e=document.getElementById('errorBox');e.textContent=msg;e.style.display='block';}
+function hideError(){document.getElementById('errorBox').style.display='none';}
+
+/* SECURITY: Mobile + student ID is NOT authenticated access.
+   Do not deploy with broad anon SELECT; use verified OTP/server-scoped session and RLS. */
+/* =====================================================
+   SUPABASE LOGIN
+   IMPORTANT: DB column is admission_number, not admission.
+===================================================== */
+function normalizeStudent(row){
+  return {...row,
+    name:row.student_name||row.name||'Student',
+    admission_number:row.student_id||'',
+    course_class:row.course||row.class_name||row.department||'-',
+    section_year:row.semester||row.year_name||row.section||'-'
+  };
+}
+async function loadParentRecords(student){
+  const id=student.student_id, institutionId=student.institution_id;
+  if(!id || !institutionId) return;
+  const queries=[
+    db.from('student_attendance').select('*').eq('institution_id',institutionId).eq('student_id',id).order('attendance_date',{ascending:false}),
+    db.from('student_progress').select('*').eq('institution_id',institutionId).eq('student_id',id).order('id',{ascending:false}),
+    db.from('fee_payments').select('*').eq('institution_id',institutionId).eq('student_id',id).order('payment_date',{ascending:false})
+  ];
+  const results=await Promise.all(queries);
+  const labels=['Attendance','Marks','Fee history'];
+  const setters=[v=>parentAttendanceRows=v,v=>parentProgressRows=v,v=>parentFeePayments=v];
+  parentDataError='';
+  results.forEach((result,i)=>{
+    if(result.error){console.error(labels[i]+' load failed:',result.error);parentDataError+=labels[i]+': '+result.error.message+'\n';}
+    else setters[i](result.data||[]);
+  });
+  const error=document.getElementById('parentDataError');
+  if(error){error.textContent=parentDataError;error.style.display=parentDataError?'block':'none';}
+}
+async function findStudent(parentMobile, admission){
+  const result=await api("/api/parent-login",{method:"POST",body:JSON.stringify({parentMobile:cleanMobile(parentMobile),studentId:String(admission||"").trim()})});
+  if(!result.student) return null;
+  currentInstitution=result.institution||null;
+  return normalizeStudent(result.student);
+}
+
+async function loadInstitution(id){
+  currentInstitution=null;
+  if(id===null || id===undefined || id==='') return;
+
+  const {data,error}=await db
+    .from('institutions')
+    .select('*')
+    .eq('id',id)
+    .maybeSingle();
+
+  if(error){
+    console.warn('Institution query:',error.message);
+    return;
+  }
+  currentInstitution=data||null;
+}
+
+// Fetch the college fee schedule configured by the institution portal.
+async function loadParentFeeSetup(student){
+  parentCourseFees=[];
+  parentSemesterFees=[];
+  if(!student?.institution_id || String(currentInstitution?.type||currentParentType).toLowerCase()!=='college') return;
+  const [courseResult,semesterResult]=await Promise.all([
+    db.from('institution_courses').select('*').eq('institution_id',student.institution_id),
+    db.from('institution_semesters').select('*').eq('institution_id',student.institution_id)
+  ]);
+  if(courseResult.error) console.warn('Parent course fee setup:',courseResult.error.message);
+  else parentCourseFees=courseResult.data||[];
+  if(semesterResult.error) console.warn('Parent semester fee setup:',semesterResult.error.message);
+  else parentSemesterFees=semesterResult.data||[];
+}
+function normalizeFeeCourse(value){
+  return String(value??'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function normalizeFeeSemester(value){
+  const text=String(value??'').trim().toLowerCase();
+  const number=text.match(/(?:semester|sem|^s\s*)\s*[-.:]?\s*(\d+)/i);
+  return number ? 'semester'+Number(number[1]) : text.replace(/[^a-z0-9]/g,'');
+}
+function parentFeeBreakdown(){
+  const s=currentStudent||{};
+  const courseName=normalizeFeeCourse(s.course||s.course_class);
+  const semesterName=normalizeFeeSemester(s.semester||s.year_name||s.section_year);
+  const course=parentCourseFees.find(c=>normalizeFeeCourse(c.course_name)===courseName);
+  const semester=parentSemesterFees.find(x=>
+    normalizeFeeSemester(x.semester_name)===semesterName &&
+    ((course && x.course_id!=null && String(x.course_id)===String(course.id)) ||
+     normalizeFeeCourse(x.course_name)===courseName)
+  );
+  const semesterFee=Number(semester?.semester_fee)||0;
+  const courseFee=Number(course?.total_fee)||0;
+  const studentFee=Number(s.total_fee)||0;
+  // A fee entered for this student in Fee Management overrides the course schedule.
+  const total=studentFee>0?studentFee:semesterFee>0?semesterFee:courseFee;
+  const paid=Number(s.paid_fee)||0;
+  return {total,paid,balance:total>0?Math.max(0,total-paid):null,configured:total>0};
+}
+function parentTotalFee(){return parentFeeBreakdown().total;}
+
+function selectParentType(type,button){
+  currentParentType=type;
+  document.querySelectorAll('.portal-option').forEach(x=>x.classList.remove('active'));
+  button?.classList.add('active');
+
+  const title=document.getElementById('loginTitle');
+  if(title) title.textContent = type==='school' ? 'School Parent Login' : 'College Parent Login';
+
+  hideError();
+}
+
+
+async function login(e) {
+
+    e.preventDefault();
+
+    hideError();
+
+    const mobile = document
+        .getElementById("loginParentMobile")
+        .value.trim();
+
+    const admission = document
+        .getElementById("loginAdmission")
+        .value.trim();
+
+    const btn = document.getElementById("loginBtn");
+
+    btn.disabled = true;
+    btn.textContent = "Checking...";
 
     try {
 
-        const loginId = String(
-            req.body.loginId || ""
-        ).trim();
+        const student = await findStudent(
+            mobile,
+            admission
+        );
 
-        const password = String(
-            req.body.password || ""
-        ).trim();
+        if (!student) {
 
-        // VALIDATION
-
-        if (!loginId || !password) {
-
-            return res.status(400).json({
-                success: false,
-                message: "Login ID and Password are required."
-            });
-
-        }
-
-        // FIND INSTITUTION
-
-        const { data, error } = await supabase
-            .from("institutions")
-            .select("*")
-            .eq("login_id", loginId)
-            .limit(1);
-
-        if (error) {
-
-            console.error(
-                "INSTITUTION LOGIN DB ERROR:",
-                error
+            showError(
+                "Student not found. Check Parent Mobile and Student ID."
             );
 
-            return res.status(500).json({
-                success: false,
-                message: "Institution login database error."
-            });
-
+            return;
         }
 
-        // LOGIN ID NOT FOUND
+        currentStudent = student;
 
-        if (!data || data.length === 0) {
-
-            return res.status(401).json({
-                success: false,
-                message: "Invalid Login ID or Password."
-            });
-
-        }
-
-        const row = data[0];
-
-        // PASSWORD CHECK
-
-        const storedPassword = String(
-            row.password || ""
-        ).trim();
+        await loadInstitution(
+            student.institution_id
+        );
 
         if (
-            !storedPassword ||
-            storedPassword !== password
+            currentInstitution?.type &&
+            String(currentInstitution.type).toLowerCase()
+                !== currentParentType
         ) {
 
-            return res.status(401).json({
-                success: false,
-                message: "Invalid Login ID or Password."
-            });
-
-        }
-
-        // SUCCESS
-
-        return res.json({
-            success: true,
-            institution: row
-        });
-
-    } catch (error) {
-
-        console.error(
-            "INSTITUTION LOGIN SERVER ERROR:",
-            error
-        );
-
-        return res.status(500).json({
-            success: false,
-            message: "Login failed. Please try again."
-        });
-
-    }
-
-});
-
-// =====================================================
-// PARENT LOGIN
-// Student ID + Parent Mobile Number
-// =====================================================
-
-app.post("/api/parent-login", async (req, res) => {
-
-    try {
-
-        const studentId = String(
-            req.body.studentId || ""
-        ).trim();
-
-        const parentMobile = String(
-            req.body.parentMobile || ""
-        ).trim();
-
-        // VALIDATION
-
-        if (!studentId || !parentMobile) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Student ID and Parent Mobile Number are required."
-            });
-
-        }
-
-        if (!/^[0-9]{10}$/.test(parentMobile)) {
-
-            return res.status(400).json({
-                success: false,
-                message:
-                    "Enter a valid 10-digit Parent Mobile Number."
-            });
-
-        }
-
-        // FIND MATCHING STUDENT
-
-        const { data, error } = await supabase
-            .from(STUDENTS_TABLE)
-            .select("*")
-            .eq(STUDENT_ID_COLUMN, studentId)
-            .eq(PARENT_MOBILE_COLUMN, parentMobile)
-            .limit(1);
-
-        if (error) {
-
-            console.error(
-                "PARENT LOGIN DB ERROR:",
-                error
+            showError(
+                "Student belongs to a different institution type."
             );
 
-            return res.status(500).json({
-                success: false,
-                message:
-                    "Unable to verify student details."
-            });
-
+            return;
         }
 
-        // STUDENT NOT FOUND
+        sessionStorage.setItem(
+            "cezonal_parent_session",
+            JSON.stringify({
 
-        if (!data || data.length === 0) {
+                student_id: student.id,
 
-            return res.status(401).json({
-                success: false,
-                message:
-                    "Student ID or Parent Mobile Number is incorrect."
-            });
+                institution_id:
+                    student.institution_id,
 
-        }
+                parent_type:
+                    currentParentType
 
-        const student = data[0];
-
-        // DO NOT SEND PASSWORD FIELDS
-
-        const {
-            password,
-            login_password,
-            ...safeStudent
-        } = student;
-
-        // SUCCESS
-
-        return res.json({
-            success: true,
-            message: "Parent login successful.",
-            student: safeStudent
-        });
-
-    } catch (error) {
-
-        console.error(
-            "PARENT LOGIN SERVER ERROR:",
-            error
+            })
         );
 
-        return res.status(500).json({
-            success: false,
-            message:
-                "Parent login failed. Please try again."
-        });
+        await openApp();
 
-    }
+    } catch (err) {
 
-});
+        console.error("LOGIN ERROR:", err);
 
-// =====================================================
-// LOGOUT
-// =====================================================
-
-app.post("/api/logout", (req, res) => {
-
-    res.json({
-        success: true,
-        message: "Logged out successfully"
-    });
-
-});
-
-// =====================================================
-// SERVE HTML
-// =====================================================
-
-app.get("/", (req, res) => {
-
-    res.sendFile(
-        path.join(
-            __dirname,
-            "institution-access.html"
-        )
-    );
-
-});
-
-// =====================================================
-// STATIC FILES
-// =====================================================
-
-app.use(
-    express.static(__dirname)
-);
-
-// =====================================================
-// START SERVER
-// =====================================================
-
-app.listen(
-    PORT,
-    "0.0.0.0",
-    () => {
-
-        console.log(
-            `Cezonal Institution Access running on port ${PORT}`
+        showError(
+            "Login failed: " +
+            (err?.message || String(err))
         );
 
+    } finally {
+
+        btn.disabled = false;
+
+        btn.textContent = "Login";
+
     }
-);
+}
+
+
+
+async function openApp(){
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('parentApp').style.display='block';
+  if(!document.getElementById('parentDataError')){const el=document.createElement('div');el.id='parentDataError';el.style.cssText='display:none;white-space:pre-line;color:#b91c1c;background:#fef2f2;padding:12px;margin:12px;border-radius:8px';document.getElementById('parentApp').prepend(el);}
+
+  await refreshCurrentStudent();
+  loadApp();
+  startParentLiveSync();
+}
+
+function loadApp(){
+  if(!currentStudent)return;
+  const s=currentStudent;
+  const ini=initials(s.name);
+  ['sideAvatar','headerAvatar','profileAvatar'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=ini;});
+  const largeAvatar=document.getElementById('dashboardAvatarLarge');
+  if(largeAvatar) largeAvatar.textContent=ini;
+  document.getElementById('sideStudentName').textContent=s.name||'Student';
+  document.getElementById('sideStudentCourse').textContent=s.course_class||'Student';
+  document.getElementById('headerCollege').textContent=currentInstitution?.name||(currentParentType==='school'?'School':'College');
+  document.getElementById('welcomeText').textContent='Welcome, '+(s.parent_name||'Parent');
+  renderDashboard();renderProgress();renderAttendance();renderFees();renderProfile();
+}
+
+function getProgress(){
+  if(Array.isArray(parentProgressRows))return parentProgressRows.map(r=>({subject:r.subject,exam_name:r.exam_name,internal:r.internal_marks,exam:r.exam_marks,totalMarks:r.scored_marks,maxMarks:r.max_marks,grade:r.grade}));
+  return [];
+}
+function progressData(){
+  const r=getProgress(); if(!r.length)return {obtained:0,total:0,percent:null};
+  let obtained=0,total=0;
+  r.forEach(x=>{const got=Number(x.totalMarks??x.total_marks??((Number(x.internal)||0)+(Number(x.exam)||0)));const max=Number(x.maxMarks??x.max_marks??100);obtained+=got;total+=max;});
+  return {obtained,total,percent:total?Math.round(obtained/total*100):null};
+}
+function grade(p){if(p>=90)return'A+';if(p>=80)return'A';if(p>=70)return'B+';if(p>=60)return'B';if(p>=50)return'C';if(p>=40)return'D';return'F';}
+
+function renderDashboard(){
+  const s=currentStudent;const p=progressData();const a=attendanceData();
+  document.getElementById('dashboardStudentName').textContent=s.name||'-';
+  document.getElementById('dashboardStudentCourse').textContent=s.course_class||'-';
+  document.getElementById('dashboardAdmission').textContent=s.admission_number||'-';
+  document.getElementById('dashboardAttendance').textContent=a.percent===null?'—':a.percent+'%';
+  document.getElementById('dashboardMarks').textContent=p.percent===null?'—':p.percent+'%';
+  const feeBalance=parentFeeBreakdown().balance;
+  document.getElementById('dashboardFee').textContent=feeBalance===null?'—':money(feeBalance);
+  document.getElementById('dashboardStatus').textContent=s.status||'Active';
+  const box=document.getElementById('dashboardProgress');box.innerHTML='';const rows=getProgress();
+  if(!rows.length){box.innerHTML='<div class="empty">No progress record available yet.</div>';return;}
+  rows.slice(0,5).forEach(x=>{const got=Number(x.totalMarks??x.total_marks??((Number(x.internal)||0)+(Number(x.exam)||0)));const max=Number(x.maxMarks??x.max_marks??100);const pc=Number(x.percentage)||Math.round(got/max*100);box.innerHTML+=`<div style="margin-bottom:17px"><div style="display:flex;justify-content:space-between;font-size:11px"><b>${esc(x.subject||'-')}</b><span>${pc}%</span></div><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pc)}%"></div></div></div>`;});
+}
+
+function renderProgress(){
+  const r=getProgress(),sum=document.getElementById('progressSummary'),table=document.getElementById('progressTable');sum.innerHTML='';table.innerHTML='';
+  if(!r.length){sum.innerHTML='<div class="progress-box"><span>SUBJECTS</span><strong>0</strong></div><div class="progress-box"><span>OVERALL</span><strong>—</strong></div><div class="progress-box"><span>STATUS</span><strong style="font-size:14px">No Record</strong></div>';table.innerHTML='<tr><td colspan="6" style="text-align:center;padding:40px">Progress record has not been added by the institution yet.</td></tr>';return;}
+  const d=progressData();sum.innerHTML=`<div class="progress-box"><span>SUBJECTS</span><strong>${r.length}</strong></div><div class="progress-box"><span>OVERALL</span><strong>${d.percent}%</strong></div><div class="progress-box"><span>MARKS</span><strong>${d.obtained}/${d.total}</strong></div>`;
+  r.forEach(x=>{const internal=Number(x.internal)||0,exam=Number(x.exam)||0,got=Number(x.totalMarks??x.total_marks??(internal+exam)),max=Number(x.maxMarks??x.max_marks??100),pc=Number(x.percentage)||Math.round(got/max*100),g=x.grade||grade(pc);table.innerHTML+=`<tr><td><b>${esc(x.subject||'-')}</b></td><td>${internal||'-'}</td><td>${exam||'-'}</td><td>${got}</td><td>${pc}%<div class="progress-bar"><div class="progress-fill" style="width:${Math.min(100,pc)}%"></div></div></td><td><span class="grade">${esc(g)}</span></td></tr>`;});
+}
+
+function attendanceData(){
+  const h=parentAttendanceRows.map(r=>({date:r.attendance_date,status:r.status}));
+  if(h.length){const present=h.filter(x=>String(x.status).toLowerCase()==='present').length,absent=h.filter(x=>String(x.status).toLowerCase()==='absent').length,working=present+absent;return{present,absent,working,percent:working?Math.round(present/working*100):null};}
+  const present=Number(currentStudent.attendance_present)||0,absent=Number(currentStudent.attendance_absent)||0,working=Number(currentStudent.attendance_working_days)||present+absent;let pc=Number(currentStudent.attendance_percent);if(!working&&!pc)return{present:0,absent:0,working:0,percent:null};if(!pc&&working)pc=Math.round(present/working*100);return{present,absent,working,percent:pc||null};
+}
+function renderAttendance(){
+  const a=attendanceData();document.getElementById('attendancePercent').textContent=a.percent===null?'—':a.percent+'%';document.getElementById('presentDays').textContent=a.present;document.getElementById('absentDays').textContent=a.absent;document.getElementById('workingDays').textContent=a.working;
+  const box=document.getElementById('attendanceHistory');box.innerHTML='';const h=parentAttendanceRows.map(r=>({date:r.attendance_date,status:r.status}));
+  if(!h.length){box.innerHTML='<div class="empty">Attendance history has not been added yet.</div>';return;}
+  h.forEach(x=>{const present=String(x.status).toLowerCase()==='present';box.innerHTML+=`<div class="history-row"><div class="history-date">${esc(x.date||'-')}</div><span class="history-status ${present?'present':'absent'}">${esc(x.status||'-')}</span></div>`;});
+}
+function renderFees(){
+  const {total,paid,balance,configured}=parentFeeBreakdown();
+  const status=!configured?'Fee Not Set':balance===0?'Paid':paid>0?'Partial':'Pending';
+  document.getElementById('feeSummary').innerHTML=
+    `<div class="fee-box"><span>TOTAL FEE</span><strong>${money(total)}</strong></div>
+     <div class="fee-box"><span>PAID</span><strong class="fee-paid">${money(paid)}</strong></div>
+     <div class="fee-box"><span>BALANCE</span><strong class="fee-pending">${balance===null?'—':money(balance)}</strong></div>
+     <div class="fee-box"><span>STATUS</span><strong style="font-size:15px;color:${status==='Paid'?'#16834b':'#d64545'}">${status}</strong></div>`;
+  const history=parentFeePayments.map(p=>
+    `<div class="history-row"><span>${esc(p.payment_date||'-')} · ${esc(p.payment_method||'-')}</span><b>${money(p.amount)}</b></div>`
+  ).join('');
+  document.getElementById('feeSummary').insertAdjacentHTML('beforeend',
+    `<div style="grid-column:1/-1;padding:14px"><h3>Payment history</h3>${history||'<div class="empty">No payments recorded yet.</div>'}</div>`);
+}
+function renderProfile(){const s=currentStudent;document.getElementById('profileName').textContent=s.name||'-';document.getElementById('profileCourse').textContent=s.course_class||'-';document.getElementById('profileInfo').innerHTML=`<div class="info"><span>STUDENT NAME</span><p>${esc(s.name||'-')}</p></div><div class="info"><span>ADMISSION NUMBER</span><p>${esc(s.admission_number||'-')}</p></div><div class="info"><span>CLASS / COURSE</span><p>${esc(s.course_class||'-')}</p></div><div class="info"><span>SECTION / YEAR</span><p>${esc(s.section_year||'-')}</p></div><div class="info"><span>PARENT NAME</span><p>${esc(s.parent_name||'-')}</p></div><div class="info"><span>PARENT MOBILE</span><p>${esc(s.parent_mobile||'-')}</p></div>`;}
+async function refreshCurrentStudent(){
+  if(!currentStudent?.id || parentRefreshBusy) return false;
+  parentRefreshBusy=true;
+  try {
+
+  const {data, error} = await db
+    .from('students')
+    .select('*')
+    .eq('id', currentStudent.id)
+    .maybeSingle();
+
+  if(error){
+    console.error('LIVE STUDENT REFRESH ERROR:', error);
+    return false;
+  }
+
+  if(!data){
+    console.warn('Student record no longer exists:', currentStudent.id);
+    return false;
+  }
+
+  currentStudent = normalizeStudent(data);
+  await loadParentRecords(data);
+
+  if(data.institution_id !== null && data.institution_id !== undefined){
+    await loadInstitution(data.institution_id);
+  }
+  await loadParentFeeSetup(data);
+
+  return true;
+  } finally { parentRefreshBusy=false; }
+}
+function renderCurrentParentData(){
+  if(!currentStudent) return;
+  renderDashboard();
+  renderProgress();
+  renderAttendance();
+  renderFees();
+  renderProfile();
+}
+
+function openPage(page,button){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.getElementById(page)?.classList.add('active');
+  document.querySelectorAll('.menu button').forEach(x=>x.classList.remove('active'));
+  button?.classList.add('active');
+
+  const titles={
+    dashboard:'Parent Dashboard',
+    progress:'Progress Record',
+    attendance:'Attendance',
+    fees:'Fee Details',
+    profile:'Student Profile'
+  };
+  document.getElementById('pageTitle').textContent=titles[page]||'Parent Portal';
+
+  const appHeader=document.getElementById('appHeader');
+  const mobileBack=document.getElementById('mobilePageBack');
+  if(appHeader) appHeader.classList.toggle('mobile-section-header', page!=='dashboard');
+  if(mobileBack) mobileBack.style.visibility = page==='dashboard' ? 'hidden' : 'visible';
+
+  /* Always read the latest student row before showing a section.
+     So admin changes to fees/marks/attendance appear without logout. */
+  refreshCurrentStudent().then(()=>{
+    renderCurrentParentData();
+  }).catch(err=>{
+    console.error('Parent live refresh failed:',err);
+  });
+}
+let parentLiveSyncTimer = null;
+let parentRealtimeChannel = null;
+
+function startParentLiveSync(){
+  if(parentLiveSyncTimer) clearInterval(parentLiveSyncTimer);
+  if(parentRealtimeChannel){
+    /* No direct Supabase Realtime connection */
+    parentRealtimeChannel = null;
+  }
+
+  // Same-origin API polling only.
+  // Fallback refresh too, so it still updates if Realtime is not enabled.
+  parentLiveSyncTimer = setInterval(async ()=>{
+    if(!currentStudent || document.visibilityState !== 'visible') return;
+    const ok = await refreshCurrentStudent();
+    if(ok) renderCurrentParentData();
+  }, 5000);
+}
+
+function stopParentLiveSync(){
+  if(parentLiveSyncTimer){
+    clearInterval(parentLiveSyncTimer);
+    parentLiveSyncTimer = null;
+  }
+  if(parentRealtimeChannel){
+    /* No direct Supabase Realtime connection */
+    parentRealtimeChannel = null;
+  }
+}
+
+function logout(){api('/api/logout',{method:'POST'}).catch(console.warn);stopParentLiveSync();currentStudent=null;currentInstitution=null;sessionStorage.removeItem('cezonal_parent_session');sessionStorage.removeItem('cezonal_parent_student');sessionStorage.removeItem('cezonal_parent_institution');document.getElementById('parentApp').style.display='none';document.getElementById('loginPage').style.display='flex';document.getElementById('loginForm').reset();hideError();openPage('dashboard',document.querySelector('.menu button'));}
+
+window.addEventListener('load', async ()=>{
+  // Remove legacy large cached objects that caused QuotaExceededError.
+  try{
+    sessionStorage.removeItem('cezonal_parent_student');
+    sessionStorage.removeItem('cezonal_parent_institution');
+  }catch(e){}
+
+  try{
+    const raw=sessionStorage.getItem('cezonal_parent_session');
+    if(!raw) return;
+
+    const saved=JSON.parse(raw);
+    if(!saved?.student_id) return;
+
+    currentParentType=saved.parent_type==='college'?'college':'school';
+
+    const {data:student,error}=await db
+      .from('students')
+      .select('*')
+      .eq('id',saved.student_id)
+      .maybeSingle();
+
+    if(error) throw error;
+    if(!student){
+      sessionStorage.removeItem('cezonal_parent_session');
+      return;
+    }
+
+    currentStudent=normalizeStudent(student);
+    await loadInstitution(student.institution_id);
+    openApp();
+  }catch(e){
+    console.warn('Session restore failed:',e);
+    try{sessionStorage.removeItem('cezonal_parent_session');}catch(_){}
+  }
+});
+</script>
+
+<section id="parentApp" style="display:none">
+</body>
+</html>
