@@ -34,149 +34,150 @@ app.use(express.urlencoded({ extended: true }));
 app.get("/api/health", (req, res) => {
     res.json({
         success: true,
-        message: "Cezonal Parent Portal Server Running"
+        message: "Cezonal Institution Access Server Running"
     });
 });
 
 // =====================================================
-// PARENT LOGIN
-// Parent Mobile + Admission Number
+// INSTITUTION LOGIN
+// Login ID + Password
 // =====================================================
 
 app.post("/api/login", async (req, res) => {
 
     try {
 
-        const parentMobile = String(
-            req.body.parentMobile ||
-            req.body.mobile ||
-            ""
-        ).replace(/\D/g, "");
+        const loginId = String(
+            req.body.loginId || ""
+        ).trim();
 
-        const admission = String(
-            req.body.admission ||
-            req.body.admissionNumber ||
-            req.body.studentId ||
-            ""
-        ).trim().toUpperCase();
+        const password = String(
+            req.body.password || ""
+        ).trim();
 
-        if (!parentMobile || !admission) {
+        // -------------------------------------------------
+        // VALIDATION
+        // -------------------------------------------------
+
+        if (!loginId || !password) {
 
             return res.status(400).json({
                 success: false,
-                message:
-                    "Parent Mobile and Admission Number are required."
+                message: "Login ID and Password are required."
             });
 
         }
 
         console.log(
-            "Parent login:",
-            parentMobile,
-            admission
+            "Institution login attempt:",
+            loginId
         );
 
         // =================================================
-        // FIND STUDENT
+        // FIND INSTITUTION
         // =================================================
 
         const {
-            data: students,
-            error: studentError
+            data,
+            error
         } = await supabase
-            .from("students")
+            .from("institutions")
             .select("*")
-            .eq("student_id", admission)
-            .eq("parent_mobile", parentMobile)
+            .eq("login_id", loginId)
             .limit(1);
 
-        if (studentError) {
+        if (error) {
 
             console.error(
-                "STUDENT LOGIN ERROR:",
-                studentError
+                "INSTITUTION LOGIN DB ERROR:",
+                error
             );
 
             return res.status(500).json({
                 success: false,
-                message: studentError.message
+                message: error.message
             });
+
         }
 
-        if (!students || students.length === 0) {
+        // -------------------------------------------------
+        // LOGIN ID NOT FOUND
+        // -------------------------------------------------
+
+        if (!data || data.length === 0) {
 
             return res.status(401).json({
                 success: false,
-                message:
-                    "Invalid Parent Mobile or Admission Number."
+                message: "Invalid Login ID or Password."
             });
+
         }
 
-        const student = students[0];
+        const row = data[0];
 
         // =================================================
-        // LOAD INSTITUTION
+        // PASSWORD CHECK
         // =================================================
 
-        let institution = null;
+        const storedPassword = String(
+            row.password || ""
+        ).trim();
 
-        if (
-            student.institution_id !== null &&
-            student.institution_id !== undefined &&
-            student.institution_id !== ""
-        ) {
+        if (!storedPassword || storedPassword !== password) {
 
-            const {
-                data: institutionData,
-                error: institutionError
-            } = await supabase
-                .from("institutions")
-                .select("*")
-                .eq("id", student.institution_id)
-                .maybeSingle();
+            return res.status(401).json({
+                success: false,
+                message: "Invalid Login ID or Password."
+            });
 
-            if (institutionError) {
-
-                console.warn(
-                    "Institution load warning:",
-                    institutionError.message
-                );
-
-            } else {
-
-                institution = institutionData || null;
-
-            }
         }
 
         // =================================================
         // SUCCESS
         // =================================================
 
+        console.log(
+            "Institution login successful:",
+            loginId
+        );
+
         return res.json({
             success: true,
 
-            student: student,
-
-            institution: institution
+            institution: row
         });
 
     } catch (error) {
 
         console.error(
-            "PARENT LOGIN SERVER ERROR:",
+            "INSTITUTION LOGIN SERVER ERROR:",
             error
         );
 
         return res.status(500).json({
             success: false,
-            message: "Parent login failed."
+            message: "Login failed. Please try again."
         });
+
     }
+
 });
 
 // =====================================================
-// SERVE PARENT HTML
+// LOGOUT
+// =====================================================
+
+app.post("/api/logout", (req, res) => {
+
+    res.json({
+        success: true,
+        message: "Logged out successfully"
+    });
+
+});
+
+// =====================================================
+// SERVE HTML
 // =====================================================
 
 app.get("/", (req, res) => {
@@ -184,7 +185,7 @@ app.get("/", (req, res) => {
     res.sendFile(
         path.join(
             __dirname,
-            "parent-access.html"
+            "institution-access.html"
         )
     );
 
@@ -192,7 +193,6 @@ app.get("/", (req, res) => {
 
 // =====================================================
 // STATIC FILES
-// img.png etc.
 // =====================================================
 
 app.use(
@@ -209,7 +209,7 @@ app.listen(
     () => {
 
         console.log(
-            `Cezonal Parent Portal running on port ${PORT}`
+            `Cezonal Institution Access running on port ${PORT}`
         );
 
     }
