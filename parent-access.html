@@ -2161,7 +2161,7 @@ html,body,#app{background:#fff!important;}
     <div class="new-login-wrapper">
 
         <div class="new-cartoon-section">
-            <img src="img.png" alt="Student">
+            <img src="picture.png" alt="Student">
         </div>
 
         <div class="new-login-section">
@@ -8420,6 +8420,20 @@ document.addEventListener('DOMContentLoaded',()=>{el('hallSearchBtn')?.addEventL
   if([...select.options].some(o=>o.value===old))select.value=old;
  }
  window.refreshExamTimetable=function(){
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
   const [course,semester,section]=ids.map(el),view=el('examTimetableView');
   if(!course||!semester||!section||!view)return;
   const courseRows=typeof courses!=='undefined'&&Array.isArray(courses)?courses:[];
@@ -8460,3 +8474,4 @@ document.addEventListener('DOMContentLoaded',()=>{el('hallSearchBtn')?.addEventL
 </script>
 </body>
 </html>
+s
