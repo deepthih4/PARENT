@@ -6,100 +6,211 @@ const app = express();
 
 const PORT = process.env.PORT || 10000;
 
-// SUPABASE — ANON KEY ONLY
+// =====================================================
+// SUPABASE
+// =====================================================
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    "Missing SUPABASE_URL or SUPABASE_ANON_KEY in Render Environment"
-  );
+    throw new Error(
+        "Missing SUPABASE_URL or SUPABASE_ANON_KEY in Render Environment"
+    );
 }
 
 const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
 );
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// HEALTH CHECK
+// =====================================================
+// HEALTH
+// =====================================================
+
 app.get("/api/health", (req, res) => {
-  res.json({
-    success: true,
-    message: "Cezonal Parent Portal Server Running"
-  });
+    res.json({
+        success: true,
+        message: "Cezonal Parent Portal Server Running"
+    });
 });
+
+// =====================================================
+// PARENT LOGIN
+// Parent Mobile + Admission Number
+// =====================================================
+
 app.post("/api/login", async (req, res) => {
+
     try {
 
-        if (!supabase) {
-            return res.status(500).json({
-                success: false,
-                message: "Supabase is not configured"
-            });
-        }
+        const parentMobile = String(
+            req.body.parentMobile ||
+            req.body.mobile ||
+            ""
+        ).replace(/\D/g, "");
 
-        const { loginId, password } = req.body;
+        const admission = String(
+            req.body.admission ||
+            req.body.admissionNumber ||
+            req.body.studentId ||
+            ""
+        ).trim().toUpperCase();
 
-        if (!loginId || !password) {
+        if (!parentMobile || !admission) {
+
             return res.status(400).json({
                 success: false,
-                message: "Login ID and password are required"
+                message:
+                    "Parent Mobile and Admission Number are required."
             });
+
         }
 
-        const { data, error } = await supabase
-            .from("institutions")
+        console.log(
+            "Parent login:",
+            parentMobile,
+            admission
+        );
+
+        // =================================================
+        // FIND STUDENT
+        // =================================================
+
+        const {
+            data: students,
+            error: studentError
+        } = await supabase
+            .from("students")
             .select("*")
-            .eq("institution_id", loginId)
-            .eq("access_password", password)
+            .eq("student_id", admission)
+            .eq("parent_mobile", parentMobile)
             .limit(1);
 
-        if (error) {
-            console.error("LOGIN ERROR:", error);
+        if (studentError) {
+
+            console.error(
+                "STUDENT LOGIN ERROR:",
+                studentError
+            );
 
             return res.status(500).json({
                 success: false,
-                message: error.message
+                message: studentError.message
             });
         }
 
-        if (!data || data.length === 0) {
+        if (!students || students.length === 0) {
+
             return res.status(401).json({
                 success: false,
-                message: "Invalid login details"
+                message:
+                    "Invalid Parent Mobile or Admission Number."
             });
         }
+
+        const student = students[0];
+
+        // =================================================
+        // LOAD INSTITUTION
+        // =================================================
+
+        let institution = null;
+
+        if (
+            student.institution_id !== null &&
+            student.institution_id !== undefined &&
+            student.institution_id !== ""
+        ) {
+
+            const {
+                data: institutionData,
+                error: institutionError
+            } = await supabase
+                .from("institutions")
+                .select("*")
+                .eq("id", student.institution_id)
+                .maybeSingle();
+
+            if (institutionError) {
+
+                console.warn(
+                    "Institution load warning:",
+                    institutionError.message
+                );
+
+            } else {
+
+                institution = institutionData || null;
+
+            }
+        }
+
+        // =================================================
+        // SUCCESS
+        // =================================================
 
         return res.json({
             success: true,
-            institution: data[0]
+
+            student: student,
+
+            institution: institution
         });
 
     } catch (error) {
 
-        console.error("SERVER LOGIN ERROR:", error);
+        console.error(
+            "PARENT LOGIN SERVER ERROR:",
+            error
+        );
 
         return res.status(500).json({
             success: false,
-            message: "Login failed"
+            message: "Parent login failed."
         });
     }
 });
-// PARENT PORTAL HOME
+
+// =====================================================
+// SERVE PARENT HTML
+// =====================================================
+
 app.get("/", (req, res) => {
-  res.sendFile(
-    path.join(__dirname, "parent-access.html")
-  );
+
+    res.sendFile(
+        path.join(
+            __dirname,
+            "parent-access.html"
+        )
+    );
+
 });
 
-// CARTOON IMAGE + OTHER STATIC FILES
-app.use(express.static(__dirname));
+// =====================================================
+// STATIC FILES
+// img.png etc.
+// =====================================================
 
+app.use(
+    express.static(__dirname)
+);
+
+// =====================================================
 // START SERVER
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(
-    `Cezonal Parent Portal running on port ${PORT}`
-  );
-});
+// =====================================================
+
+app.listen(
+    PORT,
+    "0.0.0.0",
+    () => {
+
+        console.log(
+            `Cezonal Parent Portal running on port ${PORT}`
+        );
+
+    }
+);
